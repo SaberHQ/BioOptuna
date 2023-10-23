@@ -1,4 +1,4 @@
-# BioOptuna: Hyperparameter Optimization for Bioinformatics
+# 🧬 🧿 BioOptuna: Hyperparameter Optimization for Bioinformatics
 
 BioOptuna is a streamlined hyperparameter optimization template tailored for bioinformatics applications. Built upon the robust Optuna framework, this toolkit is designed to effortlessly optimize parameters for various bioinformatics tools and pipelines.
 
