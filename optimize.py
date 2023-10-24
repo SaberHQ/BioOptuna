@@ -1,5 +1,7 @@
 import optuna
 from optuna.trial import TrialState
+from optuna.visualization import plot_optimization_history, plot_param_importances
+
 import argparse
 import sys
 
@@ -46,6 +48,7 @@ def parse_arguments():
         subparser.add_argument("-d", "--direction", type=str, choices=['minimize', 'maximize'], default='minimize', help="Direction of optimization. Default is 'minimize'.")
         subparser.add_argument("--storage", type=str, default=None, help="Database URL for Optuna. (default='None'). If you're running experiments that you don't wish to persist, consider using Optuna's in-memory storage: 'sqlite:///:memory:', otherwise select a db name: 'sqlite:///goldrush_optuna.db' for exsample.")
         subparser.add_argument("-s", "--study_name", type=str, default="biooptuna_study", help="Name of the Optuna study. Default is 'biooptuna_study'.")
+        subparser.add_argument("--plot", action='store_true', help="Plot the optimization history and parameter importances.")
 
     # Goldrush subparser
     goldrush_parser = subparsers.add_parser('goldrush', help='Optimize hyperparameters for Goldrush.')
@@ -105,6 +108,10 @@ def main(args):
         study.optimize(objective, n_trials=args.n_trials)
     else:
         study.optimize(objective_with_pruning, n_trials=args.n_trials)
+    
+    if args.plot:
+        plot_param_importances(study).show()
+        plot_optimization_history(study).show()
     
     pruned_trials = study.get_trials(deepcopy=False, states=[TrialState.PRUNED])
     complete_trials = study.get_trials(deepcopy=False, states=[TrialState.COMPLETE])
