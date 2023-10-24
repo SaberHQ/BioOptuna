@@ -6,6 +6,31 @@ import sys
 # Importing tool modules
 from tools import goldrush, test
 
+# Function to get the Optuna sampler based on user input
+def optuna_get_sampler(sampler_name):
+    if sampler_name == "random":
+        return optuna.samplers.RandomSampler()
+    elif sampler_name == "tpe":
+        return optuna.samplers.TPESampler()
+    elif sampler_name == "cmaes":
+        return optuna.samplers.CmaEsSampler()
+    else:
+        raise ValueError(f"Unknown sampler: {sampler_name}")
+
+# Function to get the Optuna pruner based on user input
+def optuna_get_pruner(pruner_name):
+    if pruner_name == "median":
+        return optuna.pruners.MedianPruner()
+    elif pruner_name == "nop":
+        return optuna.pruners.NopPruner()
+    elif pruner_name == "halving":
+        return optuna.pruners.SuccessiveHalvingPruner()
+    elif pruner_name == "hyperband":
+        return optuna.pruners.HyperbandPruner()
+    else:
+        raise ValueError(f"Unknown pruner: {pruner_name}")
+
+
 def parse_arguments():
     
     parser = argparse.ArgumentParser(description="Optimize hyperparameters for bioinformatics tools using Optuna.")
@@ -14,8 +39,8 @@ def parse_arguments():
 
     # Shared arguments
     def add_shared_arguments(subparser):
-        subparser.add_argument("--sampler", type=str, choices=['random', 'tpe', 'cmaes'], default='tpe', help='Sampler to be used for hyperparameter optimization.')
-        subparser.add_argument("--pruner", type=str, choices=['none', 'median', 'halving', 'successive', 'hyperband'], default='hyperband', help='Pruner to be used for hyperparameter optimization.')
+        subparser.add_argument("--sampler", type=str, choices=['random', 'tpe', 'cmaes'], default='tpe', help='Sampler to be used for hyperparameter optimization. Default is "tpe".')
+        subparser.add_argument("--pruner", type=str, choices=['median', 'nop', 'halving', 'hyperband'], default='nop', help='Pruner to be used for hyperparameter optimization. Default is "nop" meaning No Pruner.')
         subparser.add_argument("-n", "--n_trials", type=int, default=100, help="Number of trials for optimization. Default is 100.")
         subparser.add_argument('--seed', type=int, default=192, help='Random seed for reproducibility.')
         subparser.add_argument("-d", "--direction", type=str, choices=['minimize', 'maximize'], default='minimize', help="Direction of optimization. Default is 'minimize'.")
@@ -57,13 +82,29 @@ def main(args):
     else:
         raise ValueError("Invalid mode. Please specify a valid mode.")
     
+    sampler = optuna_get_sampler(args.sampler)
+    pruner = optuna_get_pruner(args.pruner)
+    storage_name = args.storage
+    study_name = args.study_name
+    
     # Define the study and objective
     def objective(trial):
         params = tool_module.define_search_space(trial)
         return tool_module.objective(params)
+    
+    def objective_with_pruning(trial):
+        params = tool_module.define_search_space(trial)
+        return tool_module.objective_with_pruning(params)
 
-    study = optuna.create_study(direction=args.direction)  # Adjust direction as needed
-    study.optimize(objective, n_trials=args.n_trials)
+    if storage_name is None:
+        study = optuna.create_study(direction=args.direction, sampler=sampler, pruner=pruner, study_name=study_name)
+    else:
+        study = optuna.create_study(direction=args.direction, sampler=sampler, pruner=pruner, storage=storage_name, study_name=study_name, load_if_exists=True)
+    
+    if pruner == optuna.pruners.NopPruner():
+        study.optimize(objective, n_trials=args.n_trials)
+    else:
+        study.optimize(objective_with_pruning, n_trials=args.n_trials)
     
     pruned_trials = study.get_trials(deepcopy=False, states=[TrialState.PRUNED])
     complete_trials = study.get_trials(deepcopy=False, states=[TrialState.COMPLETE])
