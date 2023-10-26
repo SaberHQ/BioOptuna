@@ -104,7 +104,7 @@ def main(args):
     else:
         study = optuna.create_study(direction=args.direction, sampler=sampler, pruner=pruner, storage=storage_name, study_name=study_name, load_if_exists=True)
     
-    if pruner == optuna.pruners.NopPruner():
+    if args.pruner == "nop":
         study.optimize(objective, n_trials=args.n_trials)
     else:
         study.optimize(objective_with_pruning, n_trials=args.n_trials)
